@@ -312,18 +312,15 @@ if __name__ == "__main__":
         device = Keyboard(
             pos_sensitivity=args.pos_sensitivity, rot_sensitivity=args.rot_sensitivity
         )
-        # Check if viewer has the old API (MuJoCo viewer) or new API (OpenCV viewer)
-        if hasattr(env.viewer, 'add_keypress_callback'):
-            try:
-                # Try new API (OpenCV renderer) - takes only callback
-                env.viewer.add_keypress_callback(device.on_press)
-                env.viewer.add_keyup_callback(device.on_release)
-                env.viewer.add_keyrepeat_callback(device.on_press)
-            except TypeError:
-                # Fall back to old API (MuJoCo viewer) - takes key and callback
-                env.viewer.add_keypress_callback("any", device.on_press)
-                env.viewer.add_keyup_callback("any", device.on_release)
-                env.viewer.add_keyrepeat_callback("any", device.on_press)
+        # Check renderer type and use appropriate API
+        if hasattr(env.viewer, 'add_keyup_callback'):
+            # Old API (MuJoCo viewer) - has keyup and keyrepeat callbacks
+            env.viewer.add_keypress_callback("any", device.on_press)
+            env.viewer.add_keyup_callback("any", device.on_release)
+            env.viewer.add_keyrepeat_callback("any", device.on_press)
+        else:
+            # New API (OpenCV renderer) - only has keypress callback
+            env.viewer.add_keypress_callback(device.on_press)
     elif args.device == "spacemouse":
         from robosuite.devices import SpaceMouse
 
