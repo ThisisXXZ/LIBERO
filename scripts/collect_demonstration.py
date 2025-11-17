@@ -18,6 +18,46 @@ import libero.libero.envs.bddl_utils as BDDLUtils
 from libero.libero.envs import *
 
 
+def log_collection(bddl_file, problem_name, language_instruction, success, demo_file=None):
+    """Log collection attempt to a simple JSON file."""
+    log_file = "demonstration_data/collection_log.json"
+    log_dir = os.path.dirname(log_file)
+    
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    # Load or create log
+    if os.path.exists(log_file):
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+    else:
+        log_data = {}
+    
+    # Extract task name from BDDL file
+    task_name = os.path.basename(bddl_file).replace('.bddl', '')
+    
+    # Initialize task entry if not exists
+    if task_name not in log_data:
+        log_data[task_name] = {
+            "bddl_file": bddl_file,
+            "language_instruction": language_instruction,
+            "successful": 0,
+            "failed": 0
+        }
+    
+    # Update counters
+    if success:
+        log_data[task_name]["successful"] += 1
+        if demo_file:
+            log_data[task_name]["demo_file"] = demo_file
+    else:
+        log_data[task_name]["failed"] += 1
+    
+    # Save log
+    with open(log_file, 'w') as f:
+        json.dump(log_data, f, indent=2)
+
+
 def collect_human_trajectory(
     env, device, arm, env_configuration, problem_info, remove_directory=[]
 ):
@@ -346,17 +386,33 @@ if __name__ == "__main__":
     os.makedirs(new_dir)
 
     # collect demonstrations
-
     remove_directory = []
     i = 0
     while i < args.num_demonstration:
-        print(i)
+        print(f"\n=== Attempt {i+1}/{args.num_demonstration} ===")
         saving = collect_human_trajectory(
             env, device, args.arm, args.config, problem_info, remove_directory
         )
         if saving:
             print(remove_directory)
+            demo_file = os.path.join(new_dir, "demo.hdf5")
             gather_demonstrations_as_hdf5(
                 tmp_directory, new_dir, env_info, args, remove_directory
             )
+            # Log successful trajectory
+            log_collection(
+                bddl_file=args.bddl_file,
+                problem_name=problem_name,
+                language_instruction=language_instruction,
+                success=True,
+                demo_file=demo_file
+            )
             i += 1
+        else:
+            # Log failed trajectory
+            log_collection(
+                bddl_file=args.bddl_file,
+                problem_name=problem_name,
+                language_instruction=language_instruction,
+                success=False
+            )
